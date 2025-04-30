@@ -1,0 +1,11 @@
+mcp
+python-dotenv
+openai
+requests
+pydantic
+typing_extensions
+httpx
+pandas
+langchain-core
+langchain-openai
+langchain
