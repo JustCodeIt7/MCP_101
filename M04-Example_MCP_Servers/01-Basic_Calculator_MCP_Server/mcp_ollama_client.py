@@ -29,37 +29,6 @@ def create_server_params(script_path: str) -> StdioServerParameters:
     )
 
 
-async def connect_and_load_tools(server_params: StdioServerParameters) -> tuple[ClientSession, List[BaseTool]]:
-    """
-    Connects to the MCP server, initializes the session, and loads tools.
-
-    Returns a tuple containing the active ClientSession and the loaded tools.
-    Handles the context management for stdio_client and ClientSession internally,
-    so the caller needs to manage the returned session's lifecycle if needed outside
-    the initial tool loading. For simplicity in this refactor, we assume the session
-    is primarily needed for tool loading within this scope.
-    A more robust implementation might return the context managers or require
-    the caller to handle them.
-    """
-    # This approach simplifies the main logic but means the session
-    # is tied to the lifetime of this specific operation.
-    # If the session is needed for longer, the context managers
-    # should be handled in the calling function (e.g., test_mcp_server).
-    # For this refactoring, we'll load tools and assume the session isn't
-    # needed further by the direct caller of this function.
-
-    # Re-thinking: It's better to establish the connection and session
-    # in the main testing function to manage the context properly.
-    # This function will just load tools given an active session.
-
-    # Let's adjust the plan: connect_and_load_tools is not the right abstraction.
-    # The connection needs to wrap the agent invocation.
-
-    # New plan: Keep connection logic in the main test function.
-    # Create helpers for agent creation/invocation and response printing.
-    pass  # This function is removed in favor of handling context in the main test function.
-
-
 async def run_agent_query(model: BaseChatModel, tools: List[BaseTool], query: str) -> Dict[str, Any]:
     """Creates a ReAct agent, invokes it with the query, and returns the response."""
     print("Creating ReAct agent...")
@@ -174,22 +143,24 @@ async def test_mcp_server(server_script_path: str, model: BaseChatModel, query: 
         print("\n--- MCP Server Test Finished ---")
 
 
-# --- Configuration ---
-# Choose the model
-# model = ChatOpenAI(model="gpt-4o") # Requires OPENAI_API_KEY
-model = ChatOllama(model="llama3.2")  # Requires Ollama server running
 
-# Define the server and query to test
-# Option 1: User Profile Server
-SERVER_SCRIPT = "/Users/james/Github/YouTube/MCP_101/M04-Example_MCP_Servers/02-User_Profile_MCP_Server/server.py"
-QUERY_TO_RUN = "What is the user's name and what is their favorite color?"
-
-# Option 2: Basic Calculator Server
-# SERVER_SCRIPT = "/Users/james/Github/YouTube/MCP_101/M04-Example_MCP_Servers/01-Basic_Calculator_MCP_Server/server.py"
-# QUERY_TO_RUN = "what's (3 + 5) * 12?"
 
 # --- Main Execution ---
 if __name__ == "__main__":
+    # --- Configuration ---
+    # model = ChatOpenAI(model="gpt-4o") # Requires OPENAI_API_KEY
+    model = ChatOllama(model="qwen3:4b") 
+    
+    # Option 1: Basic Calculator Server
+    SERVER_SCRIPT = "/Users/james/Github/YouTube/MCP_101/M04-Example_MCP_Servers/01-Basic_Calculator_MCP_Server/server.py"
+    QUERY_TO_RUN = "what's (3 + 5) * 12?"
+    
+    # Define the server and query to test
+    # Option 2: User Profile Server
+    # SERVER_SCRIPT = "/Users/james/Github/YouTube/MCP_101/M04-Example_MCP_Servers/02-User_Profile_MCP_Server/server.py"
+    # QUERY_TO_RUN = "What is the user's name and what is their favorite color?"
+
+
     # Ensure the SERVER_SCRIPT path is correct before running
     import os
 
