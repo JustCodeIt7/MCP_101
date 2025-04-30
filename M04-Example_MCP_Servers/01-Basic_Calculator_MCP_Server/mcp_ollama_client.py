@@ -9,7 +9,7 @@ from mcp import ClientSession, StdioServerParameters
 from mcp.client.stdio import stdio_client
 from langchain_mcp_adapters.tools import load_mcp_tools
 from rich import print
-
+import os
 # Choose and configure your language model
 # from langchain_openai import ChatOpenAI
 # model = ChatOpenAI(model="gpt-4o")
@@ -19,7 +19,6 @@ from langchain_ollama import ChatOllama
 def create_server_params(script_path: str) -> StdioServerParameters:
     """Creates StdioServerParameters for a given MCP server script."""
     # Ensure the script_path is absolute for reliability
-    import os
 
     absolute_script_path = os.path.abspath(script_path)
     print(f"Using server script: {absolute_script_path}")
@@ -61,10 +60,8 @@ def print_agent_response(agent_response: Dict[str, Any]):
         return
 
     for i, message in enumerate(agent_response["messages"]):
-        # Message container
         print("\n" + "-"*80)
         
-        # Extract Role
         role = "Unknown"
         if hasattr(message, "__class__"):
             role = message.__class__.__name__.replace("Message", "")
@@ -95,21 +92,21 @@ def print_agent_response(agent_response: Dict[str, Any]):
                 print()
 
 
-async def test_mcp_server(server_script_path: str, model: BaseChatModel, query: str):
+async def test_mcp_server(server_script_path: str, model: BaseChatModel, queries: List[str]):
     """
-    Connects to an MCP server, runs a query using a ReAct agent, and prints the response.
+    Connects to an MCP server, runs multiple queries using a ReAct agent, and prints the responses.
 
     Args:
         server_script_path: The path to the MCP server Python script.
         model: The language model instance (e.g., ChatOllama, ChatOpenAI).
-        query: The natural language query for the agent.
+        queries: A list of natural language queries for the agent.
     """
     print("\n" + "="*80)
     print("MCP SERVER TEST STARTING".center(80))
     print("="*80)
     print("• Server Script: " + server_script_path)
     print("• Model: " + model.__class__.__name__)
-    print("• Query: \"" + query + "\"")
+    print("• Number of Queries: " + str(len(queries)))
 
     server_params = create_server_params(server_script_path)
 
@@ -138,11 +135,18 @@ async def test_mcp_server(server_script_path: str, model: BaseChatModel, query: 
                     for i, tool in enumerate(tools):
                         print(f"  {i+1}. {tool.name}")
 
-                # Create agent, run query, and get response
-                agent_response = await run_agent_query(model, tools, query)
+                # Process each query in the list
+                for i, query in enumerate(queries):
+                    print("\n" + "="*80)
+                    print(f"PROCESSING QUERY #{i+1}".center(80))
+                    print("="*80)
+                    print(f"Query: \"{query}\"")
+                    
+                    # Create agent, run query, and get response
+                    agent_response = await run_agent_query(model, tools, query)
 
-                # Print the response details
-                print_agent_response(agent_response)
+                    # Print the response details
+                    print_agent_response(agent_response)
 
     except asyncio.TimeoutError:
         print("\n" + "="*80)
@@ -174,21 +178,27 @@ async def test_mcp_server(server_script_path: str, model: BaseChatModel, query: 
 if __name__ == "__main__":
     # --- Configuration ---
     # model = ChatOpenAI(model="gpt-4o") # Requires OPENAI_API_KEY
-    model = ChatOllama(model="qwen3:4b") 
+    # model = ChatOllama(model="qwen3:4b")     
+    # model = ChatOllama(model="llama3.2")     
+    model = ChatOllama(model="phi4-mini", temperature=0.3)     
     
     # Option 1: Basic Calculator Server
     SERVER_SCRIPT = "/Users/james/Github/YouTube/MCP_101/M04-Example_MCP_Servers/01-Basic_Calculator_MCP_Server/server.py"
-    QUERY_TO_RUN = "what's (3 + 5) * 12?"
+    QUERIES_TO_RUN = [
+        "what's (3 + 5) * 12?",
+        "Calculate the square root of 144",
+        "If I have 50 and spend 15, then multiply by 2, what do I have?"
+    ]
     
-    # Define the server and query to test
     # Option 2: User Profile Server
     # SERVER_SCRIPT = "/Users/james/Github/YouTube/MCP_101/M04-Example_MCP_Servers/02-User_Profile_MCP_Server/server.py"
-    # QUERY_TO_RUN = "What is the user's name and what is their favorite color?"
-
+    # QUERIES_TO_RUN = [
+    #     "What is the user's name and what is their favorite color?",
+    #     "How old is the user and what are their hobbies?",
+    #     "Tell me about the user's job and location"
+    # ]
     
     # Ensure the SERVER_SCRIPT path is correct before running
-    import os
-
     if not os.path.exists(SERVER_SCRIPT):
         print("\n" + "="*80)
         print("ERROR: SERVER SCRIPT NOT FOUND".center(80))
@@ -196,4 +206,4 @@ if __name__ == "__main__":
         print(f"The server script was not found at: {SERVER_SCRIPT}")
         print("Please update the SERVER_SCRIPT variable with the correct absolute path.")
     else:
-        asyncio.run(test_mcp_server(SERVER_SCRIPT, model, QUERY_TO_RUN))
+        asyncio.run(test_mcp_server(SERVER_SCRIPT, model, QUERIES_TO_RUN))
