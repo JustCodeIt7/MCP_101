@@ -1,0 +1,13 @@
+[project]
+name = "mcp_101"
+version = "0.1.0"
+description = "Add your description here"
+requires-python = ">=3.12"
+dependencies = [
+    "langchain>=0.3.24",
+    "langchain-mcp-adapters>=0.0.9",
+    "langchain-ollama>=0.3.2",
+    "langchain-openai>=0.3.14",
+    "mcp[cli]>=1.6.0",
+    "pandas>=2.2.3",
+]
