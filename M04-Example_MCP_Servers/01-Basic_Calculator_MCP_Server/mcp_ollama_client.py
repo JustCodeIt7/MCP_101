@@ -8,12 +8,12 @@ from langgraph.prebuilt import create_react_agent
 from mcp import ClientSession, StdioServerParameters
 from mcp.client.stdio import stdio_client
 from langchain_mcp_adapters.tools import load_mcp_tools
+from rich import print
 
 # Choose and configure your language model
 # from langchain_openai import ChatOpenAI
 # model = ChatOpenAI(model="gpt-4o")
 from langchain_ollama import ChatOllama
-from rich import print
 
 
 def create_server_params(script_path: str) -> StdioServerParameters:
@@ -31,60 +31,68 @@ def create_server_params(script_path: str) -> StdioServerParameters:
 
 async def run_agent_query(model: BaseChatModel, tools: List[BaseTool], query: str) -> Dict[str, Any]:
     """Creates a ReAct agent, invokes it with the query, and returns the response."""
-    print("Creating ReAct agent...")
+    print("\n" + "="*50)
+    print("CREATING AGENT".center(50))
+    print("="*50)
+    print("• Creating ReAct agent with model:", model.__class__.__name__)
+    print("• Available tools:", len(tools))
+    print("\n" + "-"*50)
+    print("EXECUTING QUERY".center(50))
+    print("-"*50)
+    print(f"Query: \"{query}\"")
+    
     agent = create_react_agent(model, tools)
-    print(f"Invoking agent with query: '{query}'")
-    agent_response = await agent.ainvoke({"messages": [("user", query)]})  # Pass query as user message
-    print("Agent invocation complete.")
+    agent_response = await agent.ainvoke({"messages": [("user", query)]})
+    
+    print("\n" + "-"*50)
+    print("EXECUTION COMPLETE".center(50))
+    print("-"*50)
     return agent_response
 
 
 def print_agent_response(agent_response: Dict[str, Any]):
     """Prints the messages from the agent response in a structured format."""
-    print("\n--- Agent Response Messages ---")
+    print("\n" + "="*80)
+    print("AGENT RESPONSE MESSAGES".center(80))
+    print("="*80)
+    
     if not agent_response or "messages" not in agent_response:
-        print("No messages found in the response.")
+        print("❌ No messages found in the response.")
         return
 
-    for message in agent_response["messages"]:
-        role = "Unknown"
-        content = ""
-        tool_info = ""
-        tool_calls_info = ""
-
+    for i, message in enumerate(agent_response["messages"]):
+        # Message container
+        print("\n" + "-"*80)
+        
         # Extract Role
+        role = "Unknown"
         if hasattr(message, "__class__"):
             role = message.__class__.__name__.replace("Message", "")
-
+        print(f"MESSAGE #{i+1} | TYPE: {role}")
+        print("-"*80)
+        
         # Extract Content
         if hasattr(message, "content") and message.content:
-            content = message.content
+            print("CONTENT:")
+            print(f"{message.content}")
+            print()
 
         # Extract Tool Name (for ToolMessage)
         if hasattr(message, "name") and message.name:
-            # Check if it's a ToolMessage by checking for tool_call_id
             if hasattr(message, "tool_call_id"):
-                tool_info = f"Tool Result for: {message.name}"
-            # Otherwise, it might be part of an AIMessage's tool_calls (handled below)
+                print("TOOL RESULT:")
+                print(f"Tool: {message.name}")
+                print()
 
         # Extract Tool Calls (for AIMessage)
         if hasattr(message, "tool_calls") and message.tool_calls:
-            calls = []
-            for tool_call in message.tool_calls:
+            print("TOOL CALLS:")
+            for j, tool_call in enumerate(message.tool_calls):
                 call_name = tool_call.get("name", "unknown_tool")
                 call_args = tool_call.get("args", {})
-                calls.append(f"Call: {call_name}(args={call_args})")
-            if calls:
-                tool_calls_info = f"Tool Calls: {'; '.join(calls)}"
-
-        # Print formatted message
-        print(f"\n[{role}]:")
-        if content:
-            print(f"  Content: {content}")
-        if tool_info:
-            print(f"  {tool_info}")
-        if tool_calls_info:
-            print(f"  {tool_calls_info}")
+                print(f"  Call #{j+1}: {call_name}")
+                print(f"  Arguments: {call_args}")
+                print()
 
 
 async def test_mcp_server(server_script_path: str, model: BaseChatModel, query: str):
@@ -96,30 +104,39 @@ async def test_mcp_server(server_script_path: str, model: BaseChatModel, query: 
         model: The language model instance (e.g., ChatOllama, ChatOpenAI).
         query: The natural language query for the agent.
     """
-    print("\n--- Starting MCP Server Test ---")
-    print(f"Server Script: {server_script_path}")
-    print(f"Model: {model.__class__.__name__}")
-    print(f"Query: '{query}'")
+    print("\n" + "="*80)
+    print("MCP SERVER TEST STARTING".center(80))
+    print("="*80)
+    print("• Server Script: " + server_script_path)
+    print("• Model: " + model.__class__.__name__)
+    print("• Query: \"" + query + "\"")
 
     server_params = create_server_params(server_script_path)
 
     try:
+        print("\n" + "-"*50)
+        print("CONNECTING TO MCP SERVER".center(50))
+        print("-"*50)
+        
         async with stdio_client(server_params) as (read, write):
-            print("MCP stdio client connected.")
+            print("✓ MCP stdio client connected successfully")
             async with ClientSession(read, write) as session:
-                print("MCP ClientSession established.")
+                print("✓ MCP ClientSession established")
                 # Initialize the connection
                 await session.initialize()
-                print("MCP Session Initialized.")
+                print("✓ MCP Session Initialized")
 
                 # Get tools
+                print("\n" + "-"*50)
+                print("LOADING TOOLS".center(50))
+                print("-"*50)
                 tools = await load_mcp_tools(session)
-                tool_names = [tool.name for tool in tools]
-                print(f"Loaded Tools: {tool_names}")
                 if not tools:
-                    print("Warning: No tools loaded from the MCP server.")
-                    # Decide if you want to proceed without tools or exit
-                    # return
+                    print("⚠ WARNING: No tools loaded from the MCP server")
+                else:
+                    print(f"✓ Successfully loaded {len(tools)} tools:")
+                    for i, tool in enumerate(tools):
+                        print(f"  {i+1}. {tool.name}")
 
                 # Create agent, run query, and get response
                 agent_response = await run_agent_query(model, tools, query)
@@ -128,21 +145,29 @@ async def test_mcp_server(server_script_path: str, model: BaseChatModel, query: 
                 print_agent_response(agent_response)
 
     except asyncio.TimeoutError:
-        print("\n--- Error: Connection or operation timed out. ---")
-        print("Ensure the server script is running correctly and accessible.")
+        print("\n" + "="*80)
+        print("ERROR: CONNECTION TIMEOUT".center(80))
+        print("="*80)
+        print("The connection or operation timed out.")
+        print("Please ensure the server script is running correctly and accessible.")
     except ConnectionRefusedError:
-        print("\n--- Error: Connection refused. ---")
-        print("Ensure the server process can be started and is not blocked.")
+        print("\n" + "="*80)
+        print("ERROR: CONNECTION REFUSED".center(80))
+        print("="*80)
+        print("The connection was refused by the server.")
+        print("Please ensure the server process can be started and is not blocked.")
     except Exception as e:
-        print("\n--- An unexpected error occurred ---")
-        print(f"Error Type: {type(e).__name__}")
-        print(f"Error Details: {e}")
-        print("Traceback:")
+        print("\n" + "="*80)
+        print("ERROR: UNEXPECTED EXCEPTION".center(80))
+        print("="*80)
+        print(f"Type: {type(e).__name__}")
+        print(f"Details: {e}")
+        print("\nTraceback:")
         traceback.print_exc()
     finally:
-        print("\n--- MCP Server Test Finished ---")
-
-
+        print("\n" + "="*80)
+        print("MCP SERVER TEST COMPLETE".center(80))
+        print("="*80)
 
 
 # --- Main Execution ---
@@ -160,12 +185,15 @@ if __name__ == "__main__":
     # SERVER_SCRIPT = "/Users/james/Github/YouTube/MCP_101/M04-Example_MCP_Servers/02-User_Profile_MCP_Server/server.py"
     # QUERY_TO_RUN = "What is the user's name and what is their favorite color?"
 
-
+    
     # Ensure the SERVER_SCRIPT path is correct before running
     import os
 
     if not os.path.exists(SERVER_SCRIPT):
-        print(f"Error: Server script not found at {SERVER_SCRIPT}")
+        print("\n" + "="*80)
+        print("ERROR: SERVER SCRIPT NOT FOUND".center(80))
+        print("="*80)
+        print(f"The server script was not found at: {SERVER_SCRIPT}")
         print("Please update the SERVER_SCRIPT variable with the correct absolute path.")
     else:
         asyncio.run(test_mcp_server(SERVER_SCRIPT, model, QUERY_TO_RUN))
