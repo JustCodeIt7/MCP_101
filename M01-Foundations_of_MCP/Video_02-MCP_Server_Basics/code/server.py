@@ -2,6 +2,7 @@ import logging
 
 from mcp.server.fastmcp import FastMCP
 
+# Turns off annoying debug messages from the MCP Inspector
 logging.getLogger("mcp").setLevel(logging.WARNING)
 
 # Create an MCP server named "HelloWorld"
