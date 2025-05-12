@@ -1,90 +1,88 @@
-# mcp_client.py
-# This script acts as a simple client to test the MCP server.
+# mcp_pydanticai_client.py
 
-# --- Imports ---
-# Use the same hypothetical library
-try:
-    import hypothetical_mcp_library as mcp
-except ImportError:
-    print("Error: Please install the required MCP library.")
-    # Provide instructions for installing the specific MCP library here
-    # e.g., print("Run: pip install actual_mcp_library_name")
-    exit()
+import asyncio
+from dataclasses import dataclass
 
-import time
-import logging
+from pydantic_ai import Agent, Tool
+from pydantic_ai.models.openai import OpenAIModel
+from pydantic_ai.providers.openai import OpenAIProvider
 
-# --- Configuration ---
-SERVER_HOST = '127.0.0.1' # Must match the server's host
-SERVER_PORT = 8765        # Must match the server's port
-LOG_LEVEL = logging.INFO
+from mcp import ClientSession, StdioServerParameters
+from mcp.client.stdio import stdio_client
 
-# --- Logging Setup ---
-logging.basicConfig(level=LOG_LEVEL, format='%(asctime)s - %(levelname)s - Client - %(message)s')
-logger = logging.getLogger(__name__)
+@dataclass
+class MCPClient:
+    session: ClientSession
 
-# --- Main Client Function ---
-def run_client():
-    """Initializes the client and sends test requests."""
-    logger.info("Initializing MCP Client...")
+    async def get_hello_world(self) -> str:
+        """Call the hello://world resource."""
+        content, _ = await self.session.read_resource("hello://world")
+        return content
 
-    try:
-        # --- Client Initialization ---
-        # Connect to the running server
-        client = mcp.Client(host=SERVER_HOST, port=SERVER_PORT)
-        logger.info(f"Attempting to connect to MCP Server at {SERVER_HOST}:{SERVER_PORT}")
-        # Some libraries might require an explicit connect() call
-        # client.connect()
-        logger.info("Connection successful (assuming init handles connection).")
+    async def greet_with_prompt(self, name: str) -> str:
+        """Invoke the hello_prompt prompt."""
+        resp = await self.session.get_prompt(
+            "hello_prompt", arguments={"name": name}
+        )
+        return str(resp)
 
-    except Exception as e:
-        logger.error(f"Failed to initialize or connect client: {e}", exc_info=True)
-        return # Exit if connection fails
+    async def greet_with_tool(self, name: str) -> str:
+        """Call the hello_tool tool."""
+        resp = await self.session.call_tool(
+            "hello_tool", arguments={"name": name}
+        )
+        return str(resp)
 
-    # --- Send Test Requests ---
+async def main():
+    # 1. Configure and launch the MCP server over stdio
+    server_params = StdioServerParameters(
+        command="python",
+        args=["server.py"],    # Make sure server.py is next to this script
+    )
 
-    # Test 1: Send a 'ping' request
-    try:
-        logger.info("Sending 'ping' request...")
-        ping_request = {
-            "command": "ping",
-            "data": "Hello Server!"
-        }
-        # The send_request method signature depends on the library
-        response = client.send_request(ping_request) # Or client.call("ping", data=...)
-        logger.info(f"Received response for 'ping': {response}")
+    async with stdio_client(server_params) as (reader, writer):
+        async with ClientSession(reader, writer) as session:
+            await session.initialize()
 
-    except Exception as e:
-        logger.error(f"Error during 'ping' request: {e}", exc_info=True)
+            # 2. Wrap in our helper
+            mcp_client = MCPClient(session=session)
 
-    # Wait a moment
-    time.sleep(1)
+            # 3. Set up your Ollama model via PydanticAI
+            ollama_model = OpenAIModel(
+                model_name="llama3.2",
+                provider=OpenAIProvider(base_url="http://localhost:11434/v1")
+            )
 
-    # Test 2: Send a 'get_context' request
-    try:
-        logger.info("Sending 'get_context' request for session '12345'...")
-        context_request = {
-            "command": "get_context",
-            "session_id": "12345"
-        }
-        response = client.send_request(context_request)
-        logger.info(f"Received response for 'get_context': {response}")
+            agent = Agent(
+                ollama_model,
+                tools=[
+                    Tool(
+                        name="get_hello_world",
+                        func=mcp_client.get_hello_world,
+                        description="Fetch the hello://world resource."
+                    ),
+                    Tool(
+                        name="hello_prompt",
+                        func=mcp_client.greet_with_prompt,
+                        description="Use the hello_prompt to greet a user by name."
+                    ),
+                    Tool(
+                        name="hello_tool",
+                        func=mcp_client.greet_with_tool,
+                        description="Use the hello_tool to greet a user by name."
+                    ),
+                ],
+            )
 
-    except Exception as e:
-        logger.error(f"Error during 'get_context' request: {e}", exc_info=True)
+            # 4. Demonstrate each capability
+            res1 = await agent.run("Fetch the greeting from the resource.")
+            print("Resource →", res1)
 
-    # --- Close Connection (if necessary) ---
-    # Some libraries might require explicit disconnection
-    try:
-        # client.close()
-        logger.info("Client connection closed (if applicable).")
-    except AttributeError:
-        logger.info("Client does not require explicit close or method not found.")
-    except Exception as e:
-         logger.error(f"Error closing client connection: {e}", exc_info=True)
+            res2 = await agent.run("Now greet Alice using the prompt tool.")
+            print("Prompt  →", res2)
 
+            res3 = await agent.run("Finally, greet Bob using the hello_tool.")
+            print("Tool    →", res3)
 
-# --- Script Execution ---
 if __name__ == "__main__":
-    run_client()
-
+    asyncio.run(main())

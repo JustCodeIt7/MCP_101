@@ -26,6 +26,7 @@ import requests
 import time
 from mcp import ClientSession, stdio_client
 
+
 # Ollama API endpoint - update if your Ollama instance runs on a different URL
 OLLAMA_API_URL = "http://localhost:11434/api/chat"
 
@@ -56,7 +57,7 @@ def main():
         print(f"Error: User Profile MCP server not found at {server_path}")
         print("Please ensure the User Profile MCP Server is in the correct location.")
         return
-    
+     
     # Start the server as a subprocess
     print(f"Starting User Profile MCP server...")
     server_process = subprocess.Popen(
@@ -184,6 +185,7 @@ def process_with_ollama(model, profile, question):
     
     Please provide helpful and insightful information based on this profile.
     """
+
     
     try:
         # Call Ollama API
