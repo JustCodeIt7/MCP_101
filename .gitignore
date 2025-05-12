@@ -174,7 +174,14 @@ cython_debug/
 .pypirc
 
 # Dev Files
-*-dev
+*-dev.py
 examples/*
 
 outline/*
+.DS_Store
+# Dev Files
+*-dev.py
+# *.dev.??
+# all files ending in dev
+*dev
+M01-Foundations_of_MCP/Video_02-MCP_Server_Basics/code/server-dev.py

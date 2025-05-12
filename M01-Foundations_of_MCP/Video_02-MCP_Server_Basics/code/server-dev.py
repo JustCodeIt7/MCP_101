@@ -14,6 +14,9 @@ mcp = FastMCP("HelloWorld")
 @mcp.resource("hello://world")
 def hello_resource() -> str:
     """Return a simple greeting."""
+    # do some computation here
+    # e.g. call an external API, or do some complex math
+    # return the result
     return "Hello, world!"
 
 
@@ -23,6 +26,7 @@ def hello_resource() -> str:
 def hello_prompt(name: str) -> str:
     """Prompt to greet a user by name."""
     # Prompt template to greet the user
+    # This is a simple example, but you can use more complex templates
     prompt_template = f"Hello, {name}!"
     return prompt_template
 
@@ -32,9 +36,8 @@ def hello_prompt(name: str) -> str:
 @mcp.tool()
 def hello_tool() -> str:
     """Tool that returns the same greeting."""
+    # do some computation here 
+    # create a new file, or send an email
+    
     return "Hello, world!"
 
-
-# --- 4. Run the server when executed directly ---
-# if __name__ == "__main__":
-#     mcp.run()
