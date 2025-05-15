@@ -1,52 +1,49 @@
 from mcp.server.fastmcp import FastMCP
-from pydantic_ai.models.openai import OpenAIModel
-from pydantic_ai.providers.openai import OpenAIProvider
+import os
+import smtplib
+from dotenv import load_dotenv
 
+load_dotenv()
+# Create an MCP server
+mcp = FastMCP("Email Tool", host="0.0.0.0", port=8000)
 
-from pydantic_ai import Agent
-
-server = FastMCP('PydanticAI Server')
-
-# Ollama Agent
-ollama_model = OpenAIModel(
-    model_name='llama3.2', provider=OpenAIProvider(base_url='http://eos-parkmour.netbird.cloud:11434/v1')
-)
-server_agent = Agent(ollama_model)
-
-@server.tool()
-async def poet(theme: str) -> str:
-    """Poem generator"""
-    r = await server_agent.run(f'write a poem about {theme}')
-    return r.output
+#MCP tool to send a mail
+@mcp.tool()
+def send_email(message: str, subject: str, reciever_email: str) -> str:
+    """email my email address"""
+    print(f'Sending email to {reciever_email}')
+    sender_email = os.getenv("SENDER_EMAIL")
+    text = f"Subject: {subject}\n\n{message}"
+    server = smtplib.SMTP("smtp.gmail.com", 587)
+    server.starttls()
+    server.login(sender_email, os.getenv("GMAIL_APP_PASSOWORD"))
+    server.sendmail(sender_email, reciever_email, text)
+    return f"Email has been sent succesfully to {reciever_email}"
 
 # --- 1. Define a Resource that returns "Hello, world!" ---
 # Resources expose data to LLMs like GET endpoints in a REST API, providing information without complex computations or side effects.
-@server.resource("hello://world")
+@mcp.resource("hello://world")
 def hello_resource() -> str:
     """Return a simple greeting."""
-    # e.g. call an external API, or do some complex math
-    content = "Hello, world!"
-    # return the result
-    return content
+    print('Hello world resource called')
+    return "Hello, world!"
 
 # --- 2. Prompt the user to enter a name ---
 # Prompts are reusable templates that help LLMs interact with your server effectively:
-@server.prompt()
+@mcp.prompt()
 def hello_prompt(name: str) -> str:
     """Prompt to greet a user by name."""
-    # Prompt template to greet the user
-    # This is a simple example, but you can use more complex templates
+    print('Hello world prompt called')
     prompt_template = f"Hello, {name}!"
     return prompt_template
 
 # --- 3. Define a Tool that also returns "Hello, world!" ---
 # Tools enable LLMs to execute actions via your server, performing computations and generating side effects beyond passive resource retrieval.
-@server.tool()
-async def hello_tool(name:str) -> str:
-    """Tool that returns the same greeting."""
-    p = f"Hello, world! {name}"
-    r = await server_agent.run(p)
-    return r.output
+@mcp.tool()
+def hello_tool(name:str) -> str:
+    """tool that returns greeting with name"""
+    print('Hello world tool called')
+    return f"Hello, world! {name}"
 
-if __name__ == '__main__':
-    server.run()
+if __name__ == "__main__":
+    mcp.run(transport="sse")
