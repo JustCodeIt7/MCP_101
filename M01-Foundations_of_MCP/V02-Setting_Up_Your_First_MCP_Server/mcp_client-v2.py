@@ -20,7 +20,7 @@ basic_mcp_server = MCPServerStdio(
         "mcp[cli]",
         "mcp",
         "run",
-        "mcp_server.py"
+        "/Users/james/Github/YouTube/MCP_101/M01-Foundations_of_MCP/Video_03-Setting_Up_Your_First_MCP_Server/code/mcp_server/mcp_server.py"
       ]
 )
 # Ollama Agent
@@ -30,20 +30,6 @@ ollama_model = OpenAIModel(
 
 agent = Agent(ollama_model, mcp_servers=[basic_mcp_server])
 
-async def extract_text(url: str) -> str:
-    """
-    Extracts text from a URL using the agent and the extract_text_from_url MCP tool.
-
-    Args:
-        url: The URL to extract text from
-
-    Returns:
-        The extracted text content from the URL
-    """
-    async with agent.run_mcp_servers():
-        prompt = f"Use the extract_text_from_url tool to get content from {url}"
-        result = await agent.run(prompt)
-        return result
 
 async def summarize_url(url: str) -> str:
     """
@@ -79,25 +65,19 @@ async def main():
     async with stdio_client(server_params) as (reader, writer):
         async with ClientSession(reader, writer) as session:
             await session.initialize()
-            print('# Calling simple add tool')
+
             result = await session.call_tool("add", arguments={"a": 3, "b": 4})
             print(f"Result of add tool: {result}")
 
-            print('\n# Calling extract_text_from_url tool and printing markdown')
-            result = await session.call_tool("extract_text_from_url", arguments={"url": "https://modelcontextprotocol.io/introduction"})
-            # print the result markdown
-            print(result.content[0].text)
-
-
-            print('\n# Pydantic AI Agent with MCP server to Summarize Webpage' )
-            # Extract text from URL using agent
-            url = "https://modelcontextprotocol.io/introduction"
-            extracted_text = await extract_text(url)
-            print(f"\n--- Extracted Text ---\n{extracted_text.output}\n")
+            # result = await session.call_tool("extract_text_from_url", arguments={"url": "https://modelcontextprotocol.io/introduction"})
+            # # print the result markdown
+            # print(result.content[0].text)
 
             # Use the agent-based approach to summarize a URL
+            url = "https://modelcontextprotocol.io/introduction"
             summary = await summarize_url(url)
-            print(f"\n--- URL Summary ---\n{summary.output}\n")
+            print(f"\n--- URL Summary ---\n{summary}")
+
 
 if __name__ == "__main__":
     asyncio.run(main())
