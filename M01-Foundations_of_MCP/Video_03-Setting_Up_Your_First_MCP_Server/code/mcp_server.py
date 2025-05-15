@@ -1,104 +1,52 @@
-# mcp_server.py
-# This script sets up and runs a basic MCP server.
+from mcp.server.fastmcp import FastMCP
+from pydantic_ai.models.openai import OpenAIModel
+from pydantic_ai.providers.openai import OpenAIProvider
 
-# --- Imports ---
-# Replace 'hypothetical_mcp_library' with the actual MCP library you are using
-try:
-    import hypothetical_mcp_library as mcp
-except ImportError:
-    print("Error: Please install the required MCP library.")
-    # Provide instructions for installing the specific MCP library here
-    # e.g., print("Run: pip install actual_mcp_library_name")
-    exit()
 
-import time
-import logging
+from pydantic_ai import Agent
 
-# --- Configuration ---
-# Basic configuration for our server
-SERVER_HOST = '127.0.0.1' # Localhost
-SERVER_PORT = 8765        # A port number for the server to listen on
-LOG_LEVEL = logging.INFO  # Set logging level (INFO, DEBUG, WARNING, ERROR)
+server = FastMCP('PydanticAI Server')
 
-# --- Logging Setup ---
-logging.basicConfig(level=LOG_LEVEL, format='%(asctime)s - %(levelname)s - %(message)s')
-logger = logging.getLogger(__name__)
+# Ollama Agent
+ollama_model = OpenAIModel(
+    model_name='llama3.2', provider=OpenAIProvider(base_url='http://eos-parkmour.netbird.cloud:11434/v1')
+)
+server_agent = Agent(ollama_model)
 
-# --- Define Server Logic (Request Handlers) ---
-# MCP servers typically handle specific types of requests or commands.
-# We define functions to handle these. The MCP library might use decorators
-# or another mechanism to register these handlers.
+@server.tool()
+async def poet(theme: str) -> str:
+    """Poem generator"""
+    r = await server_agent.run(f'write a poem about {theme}')
+    return r.output
 
-# This is a placeholder handler function.
-# The actual signature (arguments, return type) depends on the specific MCP library.
-# Assume the library routes requests based on a 'command' field in the request.
-def handle_ping_request(request_data):
-    """Handles simple 'ping' requests."""
-    logger.info(f"Received ping request: {request_data}")
-    # Simulate some processing
-    time.sleep(0.1)
-    response = {
-        "status": "success",
-        "message": "pong",
-        "timestamp": time.time()
-    }
-    logger.info("Sending pong response.")
-    return response
+# --- 1. Define a Resource that returns "Hello, world!" ---
+# Resources expose data to LLMs like GET endpoints in a REST API, providing information without complex computations or side effects.
+@server.resource("hello://world")
+def hello_resource() -> str:
+    """Return a simple greeting."""
+    # e.g. call an external API, or do some complex math
+    content = "Hello, world!"
+    # return the result
+    return content
 
-def handle_get_context_request(request_data):
-    """Handles requests to get the current context (example)."""
-    logger.info(f"Received get_context request: {request_data}")
-    # In a real server, you'd fetch actual context data
-    context = {
-        "session_id": request_data.get("session_id", "unknown"),
-        "last_interaction": time.time(),
-        "conversation_history": ["Hello!", "How can I help you today?"] # Dummy data
-    }
-    response = {
-        "status": "success",
-        "context": context
-    }
-    logger.info(f"Sending context for session: {context['session_id']}")
-    return response
+# --- 2. Prompt the user to enter a name ---
+# Prompts are reusable templates that help LLMs interact with your server effectively:
+@server.prompt()
+def hello_prompt(name: str) -> str:
+    """Prompt to greet a user by name."""
+    # Prompt template to greet the user
+    # This is a simple example, but you can use more complex templates
+    prompt_template = f"Hello, {name}!"
+    return prompt_template
 
-# --- Main Server Function ---
-def run_server():
-    """Initializes and starts the MCP server."""
-    logger.info("Initializing MCP Server...")
+# --- 3. Define a Tool that also returns "Hello, world!" ---
+# Tools enable LLMs to execute actions via your server, performing computations and generating side effects beyond passive resource retrieval.
+@server.tool()
+async def hello_tool(name:str) -> str:
+    """Tool that returns the same greeting."""
+    p = f"Hello, world! {name}"
+    r = await server_agent.run(p)
+    return r.output
 
-    # --- Server Initialization ---
-    # The exact way to initialize and configure the server depends on the library.
-    # It might take host, port, and handlers directly, or load from a config file.
-    try:
-        # Example: Pass configuration and handlers during initialization
-        server = mcp.Server(
-            host=SERVER_HOST,
-            port=SERVER_PORT,
-            log_level=LOG_LEVEL
-            # Some libraries might require handlers to be registered differently:
-            # handlers={"ping": handle_ping_request, "get_context": handle_get_context_request}
-        )
-
-        # --- Register Handlers (if needed) ---
-        # If handlers aren't passed in init, register them now.
-        # The decorator approach is common in web frameworks, MCP might use something similar.
-        # Example using a hypothetical registration method:
-        server.register_handler("ping", handle_ping_request)
-        server.register_handler("get_context", handle_get_context_request)
-
-        logger.info(f"MCP Server configured to run on {SERVER_HOST}:{SERVER_PORT}")
-
-        # --- Start the Server ---
-        # This call usually blocks, keeping the server running until interrupted.
-        logger.info("Starting MCP Server...")
-        server.start() # Or server.run(), server.listen(), etc.
-
-    except Exception as e:
-        logger.error(f"Failed to start MCP server: {e}", exc_info=True)
-        exit(1)
-
-    logger.info("MCP Server stopped.") # This line might only be reached on graceful shutdown
-
-# --- Script Execution ---
-if __name__ == "__main__":
-    run_server()
+if __name__ == '__main__':
+    server.run()
