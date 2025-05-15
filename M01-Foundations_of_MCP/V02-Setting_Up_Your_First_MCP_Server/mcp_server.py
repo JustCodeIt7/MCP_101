@@ -1,4 +1,4 @@
-# server.py
+# mcp_server.py
 from mcp.server.fastmcp import FastMCP
 from crawl4ai import AsyncWebCrawler # Import AsyncWebCrawler
 import logging
